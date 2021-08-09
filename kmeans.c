@@ -8,6 +8,9 @@ Author: Fahad Hafiz
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <float.h>
 
 #define MAX_ITERS 1000
 #define MAX_SIZE 16384
@@ -30,8 +33,7 @@ struct Point b -- the second point
 */
 float calcDistance(struct Point A, struct Point B)
 {
-	// ((A.x - B.x)^2 + SQR(A.y - B.y)^2)^0.5
-  return 0f;
+	return sqrtf(SQR(A.x - B.x) + SQR(A.y - B.y));
 }
 
 /*
@@ -44,22 +46,79 @@ int maxIters -- the maximum number of iterations of the algorithm to perform
 */
 float kMeans(struct Point* dataset, int dataSize, int maxIters)
 {
-	// initialise centroids
+	float errorMetric = 0.f;
+	float prevMetric = -1.f;
+
+	// initialise centroids -- given
+	struct Point centroids[5] = {
+		// Adam
+		{ 0, -0.357f, -0.253f },
+		// Bob
+		{ 1, -0.055f, 4.392f },
+		// Charley
+		{ 2, 2.674f, -0.001f },
+		// David
+		{ 3, 1.044f, -1.251f },
+		// Edward
+		{ 4, -1.495f, -0.090f } };
+
+	while ((maxIters-- > 0) && (errorMetric != prevMetric))
+	{
+		prevMetric = errorMetric;
+		errorMetric = 0.f;
+
 		// to update centroids
+		int counters[N_POINTS] = { 0, 0, 0, 0, 0 };
+		struct Point newCentroids[N_POINTS] = { 0, 0, 0, 0, 0 };
+
 		// assign all points to their closest centroid
+		for (int i = 0; i < dataSize; ++i)
+		{
+			float minDistance = FLT_MAX;
+
 			// for each point, find the nearest centroid c_j
+			for (int j = 0; j < N_POINTS; ++j)
+			{
+				// distance of point to a centroid
+				float distance = calcDistance(centroids[j], dataset[i]);
+
+				if (distance < minDistance)
+				{
+					minDistance = distance;
+					dataset[i].clusterID = j;
+				}
+			}
+
 			// add the co-ords to those of the new centroid
+			newCentroids[dataset[i].clusterID].x += dataset[i].x;
+			newCentroids[dataset[i].clusterID].y += dataset[i].y;
+
 			// increment total points for the cluster
+			++counters[dataset[i].clusterID];
+
 			// update error metric
+			errorMetric += minDistance;
+		}
+
 		// re-calculate centroids
-			// do not re-calculate centroids for empty clusters
-	return 0f;
+		for (int j = 0; j < N_POINTS; ++j)
+		{
+    	// do not re-calculate centroids for empty clusters
+    	if (counters[j] > 0)
+    	{
+        centroids[j].x = newCentroids[j].x / (float)counters[j];
+    	  centroids[j].y = newCentroids[j].y / (float)counters[j];
+    	}
+		}
+	}
+
+	return errorMetric;
 }
 
 // Takes as parameters a path to an input file containing point data.
 int main(int argc, char* argv[])
 {
-  FILE* fdata;
+	FILE* fdata;
 
 	if (argc == 2)
 	{
@@ -78,10 +137,60 @@ int main(int argc, char* argv[])
 		exit(1);
 	}
 
-	// init array to contain point data from input.csv
+	struct Point* dataset = (struct Point*)malloc(sizeof(struct Point) * MAX_SIZE);
 
-	// populate array with correct data
+	int dataSize = 0;
+	char lineBuffer[128];
+	while (fgets(lineBuffer, sizeof(lineBuffer), fdata))
+	{
+		char* token = strtok(lineBuffer, ",");
+		if (token)
+		{
+			dataset[dataSize].x = (float)atof(token);
+			dataset[dataSize].y = (float)atof(strtok(NULL, ","));
+			++dataSize;
+		}
+	}
+	fclose(fdata);
 
-	// run k-means, and output data
+	struct Point* resizedDataset = realloc(dataset, sizeof(struct Point) * dataSize);
+	if (resizedDataset)
+	{
+    dataset = resizedDataset;
+	}
+
+	if ((fdata=fopen("OUTPUT.TXT", "wb+")) == NULL)
+	{
+		printf("Unable to open file.\n");
+		exit(2);
+	}
+
+	fprintf(fdata, "error = %.3f\n", kMeans(dataset, dataSize, MAX_ITERS));
+	for (int i = 0; i < dataSize; ++i)
+	{
+		switch (dataset[i].clusterID)
+		{
+		case 0:
+			fprintf(fdata, "Adam\n");
+			break;
+		case 1:
+			fprintf(fdata, "Bob\n");
+			break;
+		case 2:
+			fprintf(fdata, "Charley\n");
+			break;
+		case 3:
+			fprintf(fdata, "David\n");
+			break;
+		case 4:
+			fprintf(fdata, "Edward\n");
+			break;
+		default:
+			break;
+		}
+	}
+
+	fclose(fdata);
+	free(dataset);
 	return 0;
 }
